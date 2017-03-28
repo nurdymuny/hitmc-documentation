@@ -1,0 +1,129 @@
+-- http://54.87.199.237/api/sessions/sign_in
+local base_url = "http://54.87.199.237/api"
+local url = base_url .. "/sessions/sign_in"
+local username = "test1@test.com"
+local password = "password"
+local user = {email=username, password=password}
+local data, headers, response, events, speakers
+local total_event, total_speaker
+events = {}
+speakers = {}
+total_event = 0;
+total_speaker = 0;
+
+-- LOGIN
+data = json.stringify({user=user})
+headers = {
+    ["Content-Type"] = "application/json"
+}
+response = http.request({"POST", 
+        url,
+        headers = headers,
+        data = data,
+        response_body_bytes=1000000})
+--log.debug(response.body)
+if response.status_code ~= 200 then
+  log.error('login API error')
+  do return end
+end 
+
+-- LOGIN SUCCESS & SET HEADER TOKEN
+local token = json.parse(response.body)["result"]["authentication_token"]
+headers = {
+  ["Content-Type"] = "application/json",
+  ["HITMC-User-Token"] = token
+}
+log.debug("token: " .. token)
+
+
+-- GET ALL EVENTS
+response = http.request({"GET", 
+  "http://54.87.199.237/api/events",
+  headers = headers,
+  response_body_bytes=1000000})
+
+if response.status_code ~= 200 then
+  log.error('fetching API error')
+  do return end
+end
+log.debug(response.body)
+data = json.parse(response.body)
+total_event = table.maxn(data["result"])
+for i,v in ipairs(data["result"]) do
+  events[i] = v
+end
+
+
+-- GET ALL SPEAKERS
+response = http.request({"GET", 
+  "http://54.87.199.237/api/speakers",
+  headers = headers,
+  response_body_bytes=1000000})
+
+if response.status_code ~= 200 then
+  log.error('fetching API error')
+  do return end
+end
+--log.debug(response.body)
+total_speaker = table.maxn(data["result"])
+data = json.parse(response.body)
+for i,v in ipairs(data["result"]) do
+  speakers[i] = v
+end
+
+
+-- random get event id
+-- subscribe event
+-- unsubscrib event
+-- get random speaker detail
+
+-- GET RANDOM SPEAKER DETAIL
+local s_rand = math.random(0, total_speaker)
+local speaker = speakers[s_rand]
+url = base_url .. "/speakers/" .. speaker["id"]
+response = http.request({"GET", 
+  url,
+  headers = headers,
+  response_body_bytes=1000000})
+log.debug(url)
+--log.debug(response.body)
+
+
+-- GET RANDOM EVENT DETAIL
+local e_rand = math.random(0, total_event)
+local event = events[e_rand]
+url = base_url .. "/events/" .. event["id"]
+response = http.request({"GET", 
+  url,
+  headers = headers,
+  response_body_bytes=1000000})
+log.debug(url)
+--log.debug(response.body)
+
+
+-- RANDOM DO SUBSCRIBE / UNSUBSCRIBE EVENT
+-- %2 == 0: subscribe, else  unsubscribe
+local num = math.random(0,10000)
+local action_type = "unsubscribe"
+
+if num%2 == 0 then
+  action_type = "subscribe"
+end
+url = base_url .. "/events/" .. action_type
+log.debug(url)
+
+data = json.stringify({event_id=event["id"]})
+response = http.request({"POST", 
+  url,
+  headers = headers,
+  data = data,
+  response_body_bytes=1000000})
+
+--log.debug(response.body)
+log.debug("Action: " .. username .. " " .. action_type .. " for event: ".. event["id"] .. " : " .. json.parse(response.body)["status"])
+
+--log.debug("speakers data: " .. data)
+--process data
+
+
+client.sleep(math.random(20, 40))
